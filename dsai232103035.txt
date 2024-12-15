@@ -1,0 +1,80 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, classification_report
+
+# Step 1: Load and Clean Dataset
+try:
+    # Load the dataset, skipping problematic lines
+    data = pd.read_csv('/content/sentiment_dataset.csv', on_bad_lines='skip')
+    
+    # Validate required columns
+    if 'text' not in data.columns or 'label' not in data.columns:
+        raise ValueError("Dataset must contain 'text' and 'label' columns.")
+    
+    # Check for empty rows or NaN values and drop them
+    data = data.dropna(subset=['text', 'label'])
+    print("Dataset loaded successfully. Sample data:")
+    print(data.head())
+except FileNotFoundError:
+    print("Error: The file 'sentiment_dataset.csv' was not found.")
+    exit()
+except ValueError as e:
+    print(f"Error: {e}")
+    exit()
+except pd.errors.ParserError as e:
+    print(f"ParserError: {e}")
+    exit()
+
+# Step 2: Data Preprocessing
+try:
+    X = data['text']  # Text data
+    y = data['label']  # Sentiment labels (e.g., positive, negative)
+except KeyError as e:
+    print(f"Error: Missing expected column - {e}")
+    exit()
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Convert text to numerical data using CountVectorizer
+vectorizer = CountVectorizer(stop_words='english')
+X_train_vec = vectorizer.fit_transform(X_train)
+X_test_vec = vectorizer.transform(X_test)
+
+# Step 3: Train the Naive Bayes Classifier
+model = MultinomialNB()
+model.fit(X_train_vec, y_train)
+
+# Step 4: Evaluate the Model
+predictions = model.predict(X_test_vec)
+print("\nModel Evaluation:")
+print("Accuracy:", accuracy_score(y_test, predictions))
+print("Classification Report:\n", classification_report(y_test, predictions))
+
+# Step 5: Predict Sentiment for User Input
+def predict_sentiment(text):
+    """
+    Predict sentiment for a given input text.
+    Args:
+        text (str): The text to analyze.
+    Returns:
+        str: Predicted sentiment.
+    """
+    if not text.strip():  # Check for empty input
+        return "Invalid input. Please provide some text."
+    text_vec = vectorizer.transform([text])  # Transform text into vector
+    prediction = model.predict(text_vec)  # Predict sentiment
+    return prediction[0]
+
+print("\nInteractive Sentiment Analysis")
+print("Type 'exit' to stop.")
+
+while True:
+    user_input = input("Enter text to analyze sentiment: ")
+    if user_input.lower() == 'exit':
+        print("Exiting. Thank you!")
+        break
+    sentiment = predict_sentiment(user_input)
+    print(f"Predicted Sentiment: {sentiment}")
